@@ -1,3 +1,8 @@
-const DB_NAME = "ecommerce-mern"
+//dbName
+export const DB_NAME = "ecommerce-mern"
 
-export {DB_NAME}
+//enum for user role
+export const AvailableUserRoles = {
+    ADMIN: "ADMIN",
+    USER: "USER"
+}
