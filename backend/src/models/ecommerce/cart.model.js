@@ -1,4 +1,4 @@
-import {Model, Schema} from "mongoose";
+import mongoose, {Schema} from "mongoose";
 
 const cartSchema = new Schema({
     owner: {
@@ -27,4 +27,4 @@ const cartSchema = new Schema({
 }
 )
 
-export const Cart = Model("Cart", cartSchema);
+export const Cart = mongoose.model("Cart", cartSchema);

@@ -1,5 +1,7 @@
-import {Model, Schema} from "mongoose";
+import mongoose, {Schema} from "mongoose";
 import { AvailableUserRoles } from "../../constants.js";
+import bcrypt from "bcrypt"
+import jwt from "jsonwebtoken"
 
 const userSchema = new Schema({
     username: {
@@ -39,6 +41,43 @@ const userSchema = new Schema({
 {
     timestamps: true
 }
-)
+);
 
-export const User = Model("User", userSchema);
+userSchema.pre("save", async function(next){
+    if(!this.isModified('password')) return next()
+
+    this.password = await bcrypt.hash(this.password, 10)
+    return next()
+});
+
+userSchema.methods({
+    comparePassword: async function(plainTextPassword) {
+        return await bcrypt.compare(plainTextPassword, this.password)
+    },
+    generateAccessToken: function(){
+        return jwt.sign(
+            {
+                _id: this._id,
+                email: this.email,
+                username: this.username,
+            },
+            process.env.ACCESS_TOKEN_SECRET,
+            {
+                expiresIn: process.env.ACCESS_TOKEN_EXPIRY
+            }
+        )
+    },
+    generateRefreshToken: async function(){
+        return jwt.sign(
+            {
+                _id: this._id
+            },
+            process.env.REFRESH_TOKEN_SECRET,
+            {
+                expiresIn: process.env.REFRESH_TOKEN_EXPIRY
+            }
+        )
+    },
+})
+
+export const User = mongoose.model("User", userSchema);
