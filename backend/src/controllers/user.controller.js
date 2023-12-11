@@ -25,14 +25,16 @@ const generateAccessAndRefreshToken = async(userId) => {
 const registerUser = asyncHandler(async(req, res, next) => {
     const {username, email, password, role} = req.body
 
-    if([username, email, password, role].some((field) => field == "")){
+    if(!username || !email || !password || !role){
         throw new ApiError(400, "All fields are required")
     }
 
-    const userExists = await User.findOne({email})
+    const userExists = await User.findOne({
+        $or: [{username, email}]
+    })
 
     if (userExists) {
-        throw new ApiError(409, "User with this email already exists!!!")
+        throw new ApiError(409, "User with this email or username already exists!!!")
     }
 
     const user = await User.create({
@@ -85,11 +87,13 @@ const loginUser = asyncHandler(async(req, res, next) => {
     )
 
     const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id)
+    console.log(accessToken, refreshToken);
 
     const options = {
         httpOnly: true,
         secure: process.env.NODE_ENV
     }
+
     return res
             .status(200)
             .cookie("accesToken", accessToken, options)
@@ -103,8 +107,32 @@ const loginUser = asyncHandler(async(req, res, next) => {
     )
 })
 
+const logoutUser = asyncHandler(async(req, res, next) => {
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: {
+                refreshToken: undefined
+            },
+        },
+        {new: true}
+    )
+
+    const options = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV
+    }
+
+    return res
+        .status(200)
+        .clearCookie("accessToken", options)
+        .clearCookie("refreshToken", options)
+        .json(new ApiResponse(200, {}, "User logged out !!!."))
+})
+
 export {
     registerUser,
     loginUser,
-    generateAccessAndRefreshToken
+    generateAccessAndRefreshToken,
+    logoutUser
 }

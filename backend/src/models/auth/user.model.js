@@ -50,7 +50,7 @@ userSchema.pre("save", async function(next){
     return next()
 });
 
-userSchema.methods({
+userSchema.methods = {
     comparePassword: async function(plainTextPassword) {
         return await bcrypt.compare(plainTextPassword, this.password)
     },
@@ -67,7 +67,7 @@ userSchema.methods({
             }
         )
     },
-    generateRefreshToken: async function(){
+    generateRefreshToken: function(){
         return jwt.sign(
             {
                 _id: this._id
@@ -78,6 +78,6 @@ userSchema.methods({
             }
         )
     },
-})
+}
 
 export const User = mongoose.model("User", userSchema);
