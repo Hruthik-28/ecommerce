@@ -86,8 +86,8 @@ const loginUser = asyncHandler(async(req, res, next) => {
         "-password -refreshToken"
     )
 
+
     const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id)
-    console.log(accessToken, refreshToken);
 
     const options = {
         httpOnly: true,
@@ -96,7 +96,7 @@ const loginUser = asyncHandler(async(req, res, next) => {
 
     return res
             .status(200)
-            .cookie("accesToken", accessToken, options)
+            .cookie("accessToken", accessToken, options)
             .cookie("refreshToken", refreshToken, options)
             .json(
                 new ApiResponse(
@@ -108,16 +108,20 @@ const loginUser = asyncHandler(async(req, res, next) => {
 })
 
 const logoutUser = asyncHandler(async(req, res, next) => {
-    await User.findByIdAndUpdate(
+    //todo: fix set refreshToken undefined
+    const user = await User.findByIdAndUpdate(
         req.user._id,
         {
             $set: {
                 refreshToken: undefined
             },
         },
-        {new: true}
+        { new: true }
     )
 
+    await user.save()
+
+    console.log(user);
     const options = {
         httpOnly: true,
         secure: process.env.NODE_ENV
