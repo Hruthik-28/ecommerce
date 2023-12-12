@@ -1,4 +1,4 @@
-import {ApiError, ApiResponse, asyncHandler} from '../utils/index.js'
+import {ApiError, ApiResponse, asyncHandler, sendMail, forgotPasswordMailgenContent} from '../utils/index.js'
 import { User } from '../models/auth/user.model.js'
 import { AvailableUserRoles } from "../constants.js";
 
@@ -160,11 +160,55 @@ const changeCurrentPassword = asyncHandler(async(req, res, next) => {
         )
 })
 
+const forgotPasswordRequest = asyncHandler(async(req, res, next) => {
+    const {email} = req.body
+
+    //get email from user and check if user exists
+    const user = await User.findOne({ email })
+
+    if (!user) {
+        throw new ApiError(400, "User doesnot exist.")
+    }
+
+    //generate a temporary token
+    const { unHashedToken, hashedToken, tokenExpiry } = user.generateTemporaryToken() // generate password reset creds
+
+    //save the hash version of token and expiry in db
+    user.forgotPasswordToken = hashedToken
+    user.forgotPasswordExpiry = tokenExpiry
+
+    // Send mail with the password reset link. It should be the link of the frontend url with token
+    await sendMail({
+        email: user?.email,
+        subject: "Password reset request",
+        mailgenContent: forgotPasswordMailgenContent(
+            user?.username,
+            // ! NOTE: Following link should be the link of the frontend page responsible to request password reset
+            // ! Frontend will send the below token with the new password in the request body to the backend reset password endpoint
+            // * Ideally take the url from the .env file which should be the url of the frontend
+            `${req.protocol}://${req.get(
+                "host"
+            )}/api/v1/users/reset-password/${unHashedToken}`
+        )
+    })
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200, 
+                {}, 
+                "Password reset mail has been sent on your mail id"
+            )
+        )
+})
+
 export {
     registerUser,
     loginUser,
     generateAccessAndRefreshToken,
     logoutUser,
     getCurrentUser,
-    changeCurrentPassword
+    changeCurrentPassword,
+    forgotPasswordRequest
 }
