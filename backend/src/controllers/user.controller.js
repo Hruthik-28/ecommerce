@@ -1,6 +1,7 @@
-import {ApiError, ApiResponse, asyncHandler, sendMail, forgotPasswordMailgenContent} from '../utils/index.js'
-import { User } from '../models/auth/user.model.js'
+import {ApiError, ApiResponse, asyncHandler, sendMail, forgotPasswordMailgenContent} from '../utils/index.js';
+import { User } from '../models/auth/user.model.js';
 import { AvailableUserRoles } from "../constants.js";
+import crypto from "crypto";
 
 const generateAccessAndRefreshToken = async(userId) => {
     try {
@@ -203,6 +204,45 @@ const forgotPasswordRequest = asyncHandler(async(req, res, next) => {
         )
 })
 
+const resetForgottenPassword = asyncHandler(async(req, res, next) => {
+    const { resetToken } = req.params //unhashed token recieved from params i.e frontend
+    const { newPassword } = req.body 
+
+    //generate a haskenToken from the resetToken
+    const hashedToken = crypto
+            .createHash("sha256")
+            .update(resetToken)
+            .digest("hex")
+
+    // See if user with hash similar to resetToken exists
+    // If yes then check if token expiry is greater than current date
+
+    const user = await User.findOne({
+        forgotPasswordToken: hashedToken,
+        forgotPasswordExpiry: { $gt: Date.now() }
+    })
+
+    // If either of the one is false that means the token is invalid or expired
+    if (!user) {
+        throw new ApiError(489, "Token is invalid or expired.")
+    }
+
+    // if everything is ok and token is valid
+    // reset the forgot password token and expiry
+    user.forgotPasswordToken = undefined
+    user.forgotPasswordExpiry = undefined
+
+    //set the provided password as new password
+    user.password = newPassword
+    await user.save({ validateBeforeSave: false })
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, {}, "Password reset successfully")
+        )
+})
+
 export {
     registerUser,
     loginUser,
@@ -210,5 +250,6 @@ export {
     logoutUser,
     getCurrentUser,
     changeCurrentPassword,
-    forgotPasswordRequest
+    forgotPasswordRequest,
+    resetForgottenPassword
 }
