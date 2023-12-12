@@ -108,20 +108,17 @@ const loginUser = asyncHandler(async(req, res, next) => {
 })
 
 const logoutUser = asyncHandler(async(req, res, next) => {
-    //todo: fix set refreshToken undefined
+
     const user = await User.findByIdAndUpdate(
         req.user._id,
         {
-            $set: {
-                refreshToken: undefined
-            },
+            $unset: {
+                refreshToken: 1
+            }
         },
         { new: true }
     )
 
-    await user.save()
-
-    console.log(user);
     const options = {
         httpOnly: true,
         secure: process.env.NODE_ENV
@@ -134,9 +131,40 @@ const logoutUser = asyncHandler(async(req, res, next) => {
         .json(new ApiResponse(200, {}, "User logged out !!!."))
 })
 
+const getCurrentUser = asyncHandler(async(req, res, next) => {
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, req.user, "Current user fetched successfully")
+        )
+})
+
+const changeCurrentPassword = asyncHandler(async(req, res, next) => {
+    const {oldPassword, newPassword} = req.body
+
+    const user = await User.findById(req.user._id)
+
+    const isOldPasswordCorrect = await user.comparePassword(oldPassword)
+
+    if (!isOldPasswordCorrect) {
+        throw new ApiError(400, "Invalid old password.")
+    }
+
+    user.password = newPassword
+    await user.save({ validateBeforeSave: false })
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, {}, "Password changed successfully !!!.")
+        )
+})
+
 export {
     registerUser,
     loginUser,
     generateAccessAndRefreshToken,
-    logoutUser
+    logoutUser,
+    getCurrentUser,
+    changeCurrentPassword
 }
