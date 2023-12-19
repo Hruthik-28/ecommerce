@@ -172,11 +172,13 @@ const forgotPasswordRequest = asyncHandler(async(req, res, next) => {
     }
 
     //generate a temporary token
-    const { unHashedToken, hashedToken, tokenExpiry } = user.generateTemporaryToken() // generate password reset creds
+    const { unhashedToken, hashedToken, tokenExpiry } = user.generateTemporaryToken() // generate password reset creds
 
     //save the hash version of token and expiry in db
     user.forgotPasswordToken = hashedToken
     user.forgotPasswordExpiry = tokenExpiry
+
+    await user.save({validateBeforeSave: true})
 
     // Send mail with the password reset link. It should be the link of the frontend url with token
     await sendMail({
@@ -189,7 +191,7 @@ const forgotPasswordRequest = asyncHandler(async(req, res, next) => {
             // * Ideally take the url from the .env file which should be the url of the frontend
             `${req.protocol}://${req.get(
                 "host"
-            )}/api/v1/users/reset-password/${unHashedToken}`
+            )}/api/v1/users/reset-password/${unhashedToken}`
         )
     })
 
@@ -206,7 +208,7 @@ const forgotPasswordRequest = asyncHandler(async(req, res, next) => {
 
 const resetForgottenPassword = asyncHandler(async(req, res, next) => {
     const { resetToken } = req.params //unhashed token recieved from params i.e frontend
-    const { newPassword } = req.body 
+    const { newPassword } = req.body
 
     //generate a haskenToken from the resetToken
     const hashedToken = crypto
